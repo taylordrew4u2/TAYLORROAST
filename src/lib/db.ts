@@ -9,34 +9,14 @@
  *   TURSO_AUTH_TOKEN  – Turso database auth token.
  */
 
-import { createClient, type Client, type InArgs } from "@libsql/client";
-
-let _client: Client | undefined;
-
-function getClient() {
-  if (!_client) {
-    const url = process.env.DATABASE_URL;
-    const authToken = process.env.TURSO_AUTH_TOKEN;
-
-    if (!url) {
-      throw new Error("DATABASE_URL environment variable is not set");
-    }
-
-    if (!authToken) {
-      throw new Error("TURSO_AUTH_TOKEN environment variable is not set");
-    }
-
-    _client = createClient({ url, authToken });
-  }
-
-  return _client;
-}
+import { type InArgs } from "@libsql/client";
+import { getTursoClient } from "@/turso";
 
 async function query<T extends Record<string, unknown>>(
   statement: string,
   args?: InArgs,
 ): Promise<T[]> {
-  const result = await getClient().execute({ sql: statement, args });
+  const result = await getTursoClient().execute({ sql: statement, args });
   return result.rows as unknown as T[];
 }
 
