@@ -6,7 +6,6 @@
  *
  * Environment variables:
  *   DATABASE_URL      – Turso/libSQL connection string (libsql://...)
- *                       Falls back to POSTGRES_URL for backward-compat.
  *   TURSO_AUTH_TOKEN  – Turso database auth token.
  */
 
@@ -16,14 +15,15 @@ let _client: Client | undefined;
 
 function getClient() {
   if (!_client) {
-    const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
-    const authToken =
-      process.env.TURSO_AUTH_TOKEN ?? process.env.DATABASE_AUTH_TOKEN;
+    const url = process.env.DATABASE_URL;
+    const authToken = process.env.TURSO_AUTH_TOKEN;
 
     if (!url) {
-      throw new Error(
-        "DATABASE_URL (or POSTGRES_URL) environment variable is not set",
-      );
+      throw new Error("DATABASE_URL environment variable is not set");
+    }
+
+    if (!authToken) {
+      throw new Error("TURSO_AUTH_TOKEN environment variable is not set");
     }
 
     _client = createClient({ url, authToken });
@@ -146,10 +146,11 @@ export async function getAllGroupsWithMembers(): Promise<GroupWithMembers[]> {
 export async function createGroup(name?: string): Promise<Group> {
   await ensureSchema();
   const n = name?.trim() || "New Group";
+  await query("INSERT INTO groups (name) VALUES (?);", [n]);
   const rows = await query<Record<string, unknown>>(
-    "INSERT INTO groups (name) VALUES (?);",
-    [n],
+    "SELECT id, name, created_at FROM groups WHERE id = last_insert_rowid();",
   );
+  if (!rows.length) throw new Error("Group create failed");
   return rowToGroup(rows[0]);
 }
 

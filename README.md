@@ -112,6 +112,15 @@ npx vercel --prod
 
 Or push to GitHub and connect the repo in the Vercel dashboard — it will deploy automatically.
 
+### 6. Set Turso env vars in Vercel
+
+In your Vercel project, set these environment variables for Production (and Preview if needed):
+
+- `DATABASE_URL`
+- `TURSO_AUTH_TOKEN`
+
+After saving env vars, redeploy the project.
+
 ---
 
 ## Environment Variables

@@ -9,7 +9,7 @@
  *  4. Rolls back the optimistic update if the API call fails.
  *
  * This guarantees data is NEVER lost – the single source of truth is
- * always the Postgres database.
+ * always the Turso database.
  */
 
 "use client";
