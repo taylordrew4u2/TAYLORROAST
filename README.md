@@ -50,7 +50,7 @@ A web application for stage managers to manage group check-ins during a **Comedy
 ### How Persistence Is Guaranteed
 
 1. **Every UI action** (create, edit, delete, check-in toggle) triggers an HTTP call to a Next.js API route.
-2. The API route executes a SQL statement against Vercel Postgres and returns the updated row.
+2. The API route executes a SQL statement against Turso/libSQL and returns the updated row.
 3. SWR performs an **optimistic update** (instant UI feedback) then **re-validates** from the server.
 4. If the API call fails, SWR **rolls back** the optimistic change and the UI shows the previous state.
 5. A 30-second polling interval acts as a safety net to catch any drift.
@@ -152,7 +152,7 @@ src/
 2. **Auto-migrating schema** – `ensureSchema()` runs `CREATE TABLE IF NOT EXISTS` on every read, so the database bootstraps itself on first deploy with zero manual migration steps.
 3. **API routes (not Server Actions)** – chosen for clarity and debuggability; each HTTP method maps to a specific operation.
 4. **Single SWR key** – all groups and members are fetched together as a single dataset. This simplifies cache management and avoids partial-state bugs at moderate scale.
-5. **No ORM** – direct SQL via `@vercel/postgres` keeps the dependency footprint tiny and queries transparent.
+5. **No ORM** – direct SQL via `@libsql/client` keeps the dependency footprint tiny and queries transparent.
 
 ---
 
