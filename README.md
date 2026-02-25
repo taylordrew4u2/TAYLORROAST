@@ -1,6 +1,6 @@
 # 🎤 Taylor Roast — Check-In Manager
 
-A web application for stage managers to manage group check-ins during a **Comedy Roast Tournament**. Built with Next.js, Tailwind CSS, and Vercel Postgres.
+A web application for stage managers to manage group check-ins during a **Comedy Roast Tournament**. Built with Next.js, Tailwind CSS, and Turso.
 
 ---
 
@@ -11,7 +11,7 @@ A web application for stage managers to manage group check-ins during a **Comedy
 | **Group Management** | Create, rename, delete groups in an editable card grid |
 | **Member Management** | Add, rename, remove members within any group |
 | **Check-In Toggle** | One-tap check-in / un-check-in with large touch targets |
-| **Instant Persistence** | Every change is saved to Vercel Postgres immediately — data survives page refreshes and reloads |
+| **Instant Persistence** | Every change is saved to Turso immediately — data survives page refreshes and reloads |
 | **Optimistic UI** | Changes appear instantly in the UI; rolled back automatically on error |
 | **Search / Filter** | Filter groups and members by name |
 | **CSV Export** | Download the full check-in list as a CSV file |
@@ -24,7 +24,7 @@ A web application for stage managers to manage group check-ins during a **Comedy
 - **Framework**: [Next.js](https://nextjs.org/) (App Router)
 - **Language**: TypeScript
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) v4
-- **Database**: [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres) (serverless PostgreSQL)
+- **Database**: [Turso](https://turso.tech/) (libSQL)
 - **Data Fetching**: [SWR](https://swr.vercel.app/) with optimistic mutations
 - **Deployment**: [Vercel](https://vercel.com/)
 
@@ -64,7 +64,7 @@ A web application for stage managers to manage group check-ins during a **Comedy
 ### Prerequisites
 
 - Node.js 18+
-- A Vercel account with a Vercel Postgres store created
+- A Turso database and auth token
 
 ### 1. Clone the repo
 
@@ -81,7 +81,7 @@ npm install
 
 ### 3. Set up environment variables
 
-Copy the example file and fill in your Vercel Postgres connection string:
+Copy the example file and fill in your Turso connection details:
 
 ```bash
 cp .env.example .env.local
@@ -90,10 +90,11 @@ cp .env.example .env.local
 Edit `.env.local`:
 
 ```env
-POSTGRES_URL=postgres://...    # from Vercel → Storage → your-db → .env.local tab
+DATABASE_URL=libsql://your-db.turso.io
+TURSO_AUTH_TOKEN=your-turso-auth-token
 ```
 
-> **Tip**: When deployed to Vercel with a linked Postgres store, these variables are set automatically. You only need `.env.local` for local development.
+> **Tip**: Keep `.env.local` out of source control. `.gitignore` already excludes it.
 
 ### 4. Run locally
 
@@ -117,9 +118,10 @@ Or push to GitHub and connect the repo in the Vercel dashboard — it will deplo
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `POSTGRES_URL` | Yes | Vercel Postgres connection string |
+| `DATABASE_URL` | Yes | Turso/libSQL URL (`libsql://...`) |
+| `TURSO_AUTH_TOKEN` | Yes | Turso auth token for the database |
 
-These are provided automatically when you link a Vercel Postgres store to your project.
+Set these in `.env.local` for local development and in your deployment provider's environment settings for production.
 
 ---
 

@@ -1,35 +1,61 @@
 /**
- * Database helper – thin wrapper around @neondatabase/serverless.
+ * Database helper – thin wrapper around @libsql/client (Turso).
  *
  * All mutations go through here so there is a single place to
  * audit and to swap out the driver if needed later.
  *
- * Environment variable required:
- *   DATABASE_URL  – Neon Postgres connection string (set automatically
- *                    when you link a Neon integration on Vercel).
- *                    Falls back to POSTGRES_URL for backward-compat.
+ * Environment variables:
+ *   DATABASE_URL      – Turso/libSQL connection string (libsql://...)
+ *                       Falls back to POSTGRES_URL for backward-compat.
+ *   TURSO_AUTH_TOKEN  – Turso database auth token.
  */
 
-import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
+import { createClient, type Client, type InArgs } from "@libsql/client";
 
-/**
- * Lazy-initialised Neon client.
- * We defer creation so `next build` can import this module without
- * requiring DATABASE_URL at compile time.
- */
-let _sql: NeonQueryFunction<false, false> | undefined;
+let _client: Client | undefined;
 
-function sql(strings: TemplateStringsArray, ...values: unknown[]) {
-  if (!_sql) {
+function getClient() {
+  if (!_client) {
     const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
+    const authToken =
+      process.env.TURSO_AUTH_TOKEN ?? process.env.DATABASE_AUTH_TOKEN;
+
     if (!url) {
       throw new Error(
         "DATABASE_URL (or POSTGRES_URL) environment variable is not set",
       );
     }
-    _sql = neon(url);
+
+    _client = createClient({ url, authToken });
   }
-  return _sql(strings, ...values);
+
+  return _client;
+}
+
+async function query<T extends Record<string, unknown>>(
+  statement: string,
+  args?: InArgs,
+): Promise<T[]> {
+  const result = await getClient().execute({ sql: statement, args });
+  return result.rows as unknown as T[];
+}
+
+function rowToGroup(row: Record<string, unknown>): Group {
+  return {
+    id: Number(row.id),
+    name: String(row.name),
+    created_at: String(row.created_at),
+  };
+}
+
+function rowToMember(row: Record<string, unknown>): Member {
+  return {
+    id: Number(row.id),
+    group_id: Number(row.group_id),
+    name: String(row.name),
+    checked_in: Boolean(Number(row.checked_in)),
+    created_at: String(row.created_at),
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -59,23 +85,25 @@ export interface GroupWithMembers extends Group {
 /* ------------------------------------------------------------------ */
 
 export async function ensureSchema() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS groups (
-      id          SERIAL PRIMARY KEY,
-      name        TEXT NOT NULL DEFAULT 'New Group',
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-  `;
+  await query("PRAGMA foreign_keys = ON;");
 
-  await sql`
+  await query(`
+    CREATE TABLE IF NOT EXISTS groups (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT NOT NULL DEFAULT 'New Group',
+      created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await query(`
     CREATE TABLE IF NOT EXISTS members (
-      id          SERIAL PRIMARY KEY,
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
       group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
       name        TEXT NOT NULL DEFAULT 'New Member',
-      checked_in  BOOLEAN NOT NULL DEFAULT false,
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+      checked_in  INTEGER NOT NULL DEFAULT 0,
+      created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
-  `;
+  `);
 }
 
 /* ------------------------------------------------------------------ */
@@ -86,32 +114,29 @@ export async function ensureSchema() {
 export async function getAllGroupsWithMembers(): Promise<GroupWithMembers[]> {
   await ensureSchema();
 
-  const groups = await sql`
-    SELECT id, name, created_at FROM groups ORDER BY created_at ASC;
-  `;
+  const groups = await query<Record<string, unknown>>(
+    "SELECT id, name, created_at FROM groups ORDER BY created_at ASC;",
+  );
 
-  const members = await sql`
-    SELECT id, group_id, name, checked_in, created_at
-    FROM members ORDER BY created_at ASC;
-  `;
+  const members = await query<Record<string, unknown>>(
+    "SELECT id, group_id, name, checked_in, created_at FROM members ORDER BY created_at ASC;",
+  );
 
   const membersByGroup = new Map<number, Member[]>();
   for (const m of members) {
-    const list = membersByGroup.get(m.group_id as number) ?? [];
-    list.push({
-      id: m.id as number,
-      group_id: m.group_id as number,
-      name: m.name as string,
-      checked_in: m.checked_in as boolean,
-      created_at: m.created_at as string,
-    });
-    membersByGroup.set(m.group_id as number, list);
+    const member = rowToMember(m);
+    const list = membersByGroup.get(member.group_id) ?? [];
+    list.push(member);
+    membersByGroup.set(member.group_id, list);
   }
 
-  return (groups as Group[]).map((g) => ({
-    ...g,
-    members: membersByGroup.get(g.id) ?? [],
-  }));
+  return groups.map((g) => {
+    const group = rowToGroup(g);
+    return {
+      ...group,
+      members: membersByGroup.get(group.id) ?? [],
+    };
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -121,22 +146,25 @@ export async function getAllGroupsWithMembers(): Promise<GroupWithMembers[]> {
 export async function createGroup(name?: string): Promise<Group> {
   await ensureSchema();
   const n = name?.trim() || "New Group";
-  const rows = await sql`
-    INSERT INTO groups (name) VALUES (${n}) RETURNING *;
-  `;
-  return rows[0] as Group;
+  const rows = await query<Record<string, unknown>>(
+    "INSERT INTO groups (name) VALUES (?);",
+    [n],
+  );
+  return rowToGroup(rows[0]);
 }
 
 export async function updateGroup(id: number, name: string): Promise<Group> {
-  const rows = await sql`
-    UPDATE groups SET name = ${name.trim()} WHERE id = ${id} RETURNING *;
-  `;
+  await query("UPDATE groups SET name = ? WHERE id = ?;", [name.trim(), id]);
+  const rows = await query<Record<string, unknown>>(
+    "SELECT id, name, created_at FROM groups WHERE id = ?;",
+    [id],
+  );
   if (!rows.length) throw new Error("Group not found");
-  return rows[0] as Group;
+  return rowToGroup(rows[0]);
 }
 
 export async function deleteGroup(id: number): Promise<void> {
-  await sql`DELETE FROM groups WHERE id = ${id};`;
+  await query("DELETE FROM groups WHERE id = ?;", [id]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -148,10 +176,14 @@ export async function createMember(
   name?: string,
 ): Promise<Member> {
   const n = name?.trim() || "New Member";
-  const rows = await sql`
-    INSERT INTO members (group_id, name) VALUES (${groupId}, ${n}) RETURNING *;
-  `;
-  return rows[0] as Member;
+  await query("INSERT INTO members (group_id, name) VALUES (?, ?);", [
+    groupId,
+    n,
+  ]);
+  const rows = await query<Record<string, unknown>>(
+    "SELECT id, group_id, name, checked_in, created_at FROM members WHERE id = last_insert_rowid();",
+  );
+  return rowToMember(rows[0]);
 }
 
 export async function updateMember(
@@ -160,30 +192,45 @@ export async function updateMember(
 ): Promise<Member> {
   // Build dynamic update – only touch provided fields.
   if (data.name !== undefined && data.checked_in !== undefined) {
-    const rows = await sql`
-      UPDATE members SET name = ${data.name.trim()}, checked_in = ${data.checked_in}
-      WHERE id = ${id} RETURNING *;
-    `;
+    await query("UPDATE members SET name = ?, checked_in = ? WHERE id = ?;", [
+      data.name.trim(),
+      data.checked_in ? 1 : 0,
+      id,
+    ]);
+    const rows = await query<Record<string, unknown>>(
+      "SELECT id, group_id, name, checked_in, created_at FROM members WHERE id = ?;",
+      [id],
+    );
     if (!rows.length) throw new Error("Member not found");
-    return rows[0] as Member;
+    return rowToMember(rows[0]);
   }
   if (data.name !== undefined) {
-    const rows = await sql`
-      UPDATE members SET name = ${data.name.trim()} WHERE id = ${id} RETURNING *;
-    `;
+    await query("UPDATE members SET name = ? WHERE id = ?;", [
+      data.name.trim(),
+      id,
+    ]);
+    const rows = await query<Record<string, unknown>>(
+      "SELECT id, group_id, name, checked_in, created_at FROM members WHERE id = ?;",
+      [id],
+    );
     if (!rows.length) throw new Error("Member not found");
-    return rows[0] as Member;
+    return rowToMember(rows[0]);
   }
   if (data.checked_in !== undefined) {
-    const rows = await sql`
-      UPDATE members SET checked_in = ${data.checked_in} WHERE id = ${id} RETURNING *;
-    `;
+    await query("UPDATE members SET checked_in = ? WHERE id = ?;", [
+      data.checked_in ? 1 : 0,
+      id,
+    ]);
+    const rows = await query<Record<string, unknown>>(
+      "SELECT id, group_id, name, checked_in, created_at FROM members WHERE id = ?;",
+      [id],
+    );
     if (!rows.length) throw new Error("Member not found");
-    return rows[0] as Member;
+    return rowToMember(rows[0]);
   }
   throw new Error("No fields to update");
 }
 
 export async function deleteMember(id: number): Promise<void> {
-  await sql`DELETE FROM members WHERE id = ${id};`;
+  await query("DELETE FROM members WHERE id = ?;", [id]);
 }

@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/taylordrew4u2/TAYLORROAST#readme",
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2",
+    "@libsql/client": "^0.17.0",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^25.3.0",
     "@types/react": "^19.2.14",
