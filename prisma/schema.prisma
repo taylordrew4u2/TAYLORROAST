@@ -1,0 +1,27 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Group {
+  id         String   @id @default(cuid())
+  name       String
+  createdAt  DateTime @default(now())
+  members    Member[]
+}
+
+model Member {
+  id         String   @id @default(cuid())
+  groupId    String
+  name       String
+  checkedIn  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
