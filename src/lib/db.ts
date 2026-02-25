@@ -1,15 +1,25 @@
 /**
- * Database helper – thin wrapper around @vercel/postgres.
+ * Database helper – thin wrapper around @neondatabase/serverless.
  *
  * All mutations go through here so there is a single place to
  * audit and to swap out the driver if needed later.
  *
  * Environment variable required:
- *   POSTGRES_URL  – Vercel Postgres connection string (set automatically
- *                    when you link a Vercel Postgres store).
+ *   DATABASE_URL  – Neon Postgres connection string (set automatically
+ *                    when you link a Neon integration on Vercel).
+ *                    Falls back to POSTGRES_URL for backward-compat.
  */
 
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
+
+const databaseUrl = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
+if (!databaseUrl) {
+  throw new Error(
+    "DATABASE_URL (or POSTGRES_URL) environment variable is not set",
+  );
+}
+
+const sql = neon(databaseUrl);
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -65,11 +75,11 @@ export async function ensureSchema() {
 export async function getAllGroupsWithMembers(): Promise<GroupWithMembers[]> {
   await ensureSchema();
 
-  const { rows: groups } = await sql`
+  const groups = await sql`
     SELECT id, name, created_at FROM groups ORDER BY created_at ASC;
   `;
 
-  const { rows: members } = await sql`
+  const members = await sql`
     SELECT id, group_id, name, checked_in, created_at
     FROM members ORDER BY created_at ASC;
   `;
@@ -100,14 +110,14 @@ export async function getAllGroupsWithMembers(): Promise<GroupWithMembers[]> {
 export async function createGroup(name?: string): Promise<Group> {
   await ensureSchema();
   const n = name?.trim() || "New Group";
-  const { rows } = await sql`
+  const rows = await sql`
     INSERT INTO groups (name) VALUES (${n}) RETURNING *;
   `;
   return rows[0] as Group;
 }
 
 export async function updateGroup(id: number, name: string): Promise<Group> {
-  const { rows } = await sql`
+  const rows = await sql`
     UPDATE groups SET name = ${name.trim()} WHERE id = ${id} RETURNING *;
   `;
   if (!rows.length) throw new Error("Group not found");
@@ -127,7 +137,7 @@ export async function createMember(
   name?: string,
 ): Promise<Member> {
   const n = name?.trim() || "New Member";
-  const { rows } = await sql`
+  const rows = await sql`
     INSERT INTO members (group_id, name) VALUES (${groupId}, ${n}) RETURNING *;
   `;
   return rows[0] as Member;
@@ -139,7 +149,7 @@ export async function updateMember(
 ): Promise<Member> {
   // Build dynamic update – only touch provided fields.
   if (data.name !== undefined && data.checked_in !== undefined) {
-    const { rows } = await sql`
+    const rows = await sql`
       UPDATE members SET name = ${data.name.trim()}, checked_in = ${data.checked_in}
       WHERE id = ${id} RETURNING *;
     `;
@@ -147,14 +157,14 @@ export async function updateMember(
     return rows[0] as Member;
   }
   if (data.name !== undefined) {
-    const { rows } = await sql`
+    const rows = await sql`
       UPDATE members SET name = ${data.name.trim()} WHERE id = ${id} RETURNING *;
     `;
     if (!rows.length) throw new Error("Member not found");
     return rows[0] as Member;
   }
   if (data.checked_in !== undefined) {
-    const { rows } = await sql`
+    const rows = await sql`
       UPDATE members SET checked_in = ${data.checked_in} WHERE id = ${id} RETURNING *;
     `;
     if (!rows.length) throw new Error("Member not found");
