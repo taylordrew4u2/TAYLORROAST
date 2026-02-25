@@ -124,7 +124,7 @@ export async function deleteGroup(id: number): Promise<void> {
 
 export async function createMember(
   groupId: number,
-  name?: string
+  name?: string,
 ): Promise<Member> {
   const n = name?.trim() || "New Member";
   const { rows } = await sql`
@@ -135,7 +135,7 @@ export async function createMember(
 
 export async function updateMember(
   id: number,
-  data: { name?: string; checked_in?: boolean }
+  data: { name?: string; checked_in?: boolean },
 ): Promise<Member> {
   // Build dynamic update – only touch provided fields.
   if (data.name !== undefined && data.checked_in !== undefined) {
