@@ -6,8 +6,8 @@ A web application for stage managers to manage group check-ins during a **Comedy
 
 ## Features
 
-| Feature | Details |
-|---------|---------|
+| Feature             | Details                                                                             |
+|---------------------|-------------------------------------------------------------------------------------|
 | **Group Management** | Create, rename, delete groups in an editable card grid |
 | **Member Management** | Add, rename, remove members within any group |
 | **Check-In Toggle** | One-tap check-in / un-check-in with large touch targets |
@@ -32,7 +32,7 @@ A web application for stage managers to manage group check-ins during a **Comedy
 
 ## Data Model
 
-```
+```text
 ┌──────────┐         ┌──────────────┐
 │  groups   │ 1 ── ∞ │   members    │
 ├──────────┤         ├──────────────┤
@@ -63,7 +63,7 @@ A web application for stage managers to manage group check-ins during a **Comedy
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js (Latest LTS recommended)
 - A Turso database and auth token
 
 ### 1. Clone the repo
@@ -81,7 +81,7 @@ npm install
 
 ### 3. Set up environment variables
 
-**Option A: Manual setup**
+#### Option A: Manual setup
 
 Copy the example file and fill in your Turso connection details:
 
@@ -96,7 +96,7 @@ DATABASE_URL=libsql://your-db.turso.io
 TURSO_AUTH_TOKEN=your-turso-auth-token
 ```
 
-**Option B: Vercel setup (recommended if deploying to Vercel)**
+#### Option B: Vercel setup (recommended if deploying to Vercel)
 
 Link your project and pull environment variables:
 
@@ -138,10 +138,10 @@ After saving env vars, redeploy the project.
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | Turso/libSQL URL (`libsql://...`) |
-| `TURSO_AUTH_TOKEN` | Yes | Turso auth token for the database |
+| Variable           | Required | Description                           |
+|--------------------|----------|---------------------------------------|
+| `DATABASE_URL`     | Yes      | Turso/libSQL URL (`libsql://...`)     |
+| `TURSO_AUTH_TOKEN` | Yes      | Turso auth token for the database     |
 
 Set these in `.env.local` for local development and in your deployment provider's environment settings for production.
 
@@ -149,7 +149,7 @@ Set these in `.env.local` for local development and in your deployment provider'
 
 ## Project Structure
 
-```
+```text
 src/
 ├── app/
 │   ├── api/
