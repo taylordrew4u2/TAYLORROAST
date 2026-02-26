@@ -15,7 +15,24 @@ export function getTursoClient() {
       throw new Error("TURSO_AUTH_TOKEN environment variable is not set");
     }
 
-    client = createClient({ url, authToken });
+    // Custom fetch wrapper to handle the missing cancel() method
+    const customFetch = async (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const response = await fetch(input, init);
+      // Add a no-op cancel method if it doesn't exist
+      if (response.body && !(response.body as any).cancel) {
+        (response.body as any).cancel = () => {};
+      }
+      return response;
+    };
+
+    client = createClient({
+      url,
+      authToken,
+      fetch: customFetch as typeof fetch,
+    });
   }
 
   return client;
