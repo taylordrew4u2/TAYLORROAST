@@ -81,6 +81,8 @@ npm install
 
 ### 3. Set up environment variables
 
+**Option A: Manual setup**
+
 Copy the example file and fill in your Turso connection details:
 
 ```bash
@@ -93,6 +95,17 @@ Edit `.env.local`:
 DATABASE_URL=libsql://your-db.turso.io
 TURSO_AUTH_TOKEN=your-turso-auth-token
 ```
+
+**Option B: Vercel setup (recommended if deploying to Vercel)**
+
+Link your project and pull environment variables:
+
+```bash
+vercel link
+vercel env pull
+```
+
+This will create/update `.env.local` with your project's environment variables.
 
 > **Tip**: Keep `.env.local` out of source control. `.gitignore` already excludes it.
 
