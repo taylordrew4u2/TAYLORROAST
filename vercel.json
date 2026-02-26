@@ -1,9 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs"
-}
-{
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "framework": "nextjs",
   "type": "object",
   "additionalProperties": false,
   "properties": {
